@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from .models import PackageStatus
 
+
 class PackageManager:
     """处理资源包安装、元数据管理和配置的核心逻辑类"""
 
@@ -188,7 +189,7 @@ class PackageManager:
                             "status": "skipped",
                             "source": str(relpath),
                             "dest": str(rel_dest),
-                            "mtime": mtime_int,
+                            "mtime": int(dest.stat().st_mtime * 1_000_000),
                             "message": "same size",
                             "timestamp": mtime_iso,
                         }
@@ -295,6 +296,32 @@ class PackageManager:
 
         return True
 
+    def _get_all_referenced_files(self, meta_dir, exclude_meta_path):
+        """获取所有其他资源包引用的文件和目录集合"""
+        referenced = set()
+        meta_path = Path(meta_dir)
+        exclude_meta_path = Path(exclude_meta_path)
+
+        for json_file in meta_path.glob("*.json"):
+            if json_file.resolve() == exclude_meta_path.resolve():
+                continue
+            try:
+                with open(json_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                # 收集文件
+                for item in data.get("files", []):
+                    dest = item.get("dest")
+                    if dest:
+                        referenced.add(dest)
+                # 收集目录
+                for d_info in data.get("dirs", []):
+                    dest = d_info.get("dest")
+                    if dest:
+                        referenced.add(dest)
+            except:
+                continue
+        return referenced
+
     def delete_package(self, meta_path, app_root):
         """删除资源包及其相关文件和目录"""
         meta_path = Path(meta_path)
@@ -319,14 +346,29 @@ class PackageManager:
             is_dry_run = status == PackageStatus.DRY_RUN.value
             conflicts = []
 
+            # 获取其他包引用的文件，用于处理共享文件
+            meta_dir = meta_path.parent
+            other_referenced = self._get_all_referenced_files(meta_dir, meta_path)
+
             # 只有 NORMAL 状态才执行物理删除逻辑
             if status == PackageStatus.NORMAL.value:
                 # 1. 删除文件
                 items = data.get("files", [])
                 for item in items:
-                    if item.get("status") in ("copied", "overwritten"):
-                        dest_path = app_root / item.get("dest")
+                    dest_rel = item.get("dest")
+                    if not dest_rel:
+                        continue
+
+                    if item.get("status") in ("copied", "overwritten", "skipped"):
+                        dest_path = app_root / dest_rel
                         if dest_path.exists() and dest_path.is_file():
+                            # 检查是否被其他包引用
+                            if dest_rel in other_referenced:
+                                print(
+                                    f"[DEBUG] 文件被其他包引用，跳过删除: {dest_path}"
+                                )
+                                continue
+
                             # 比较时间戳，如果不一致说明被其他资源包修改过
                             current_mtime = int(dest_path.stat().st_mtime * 1_000_000)
                             recorded_mtime = item.get("mtime")
@@ -354,7 +396,15 @@ class PackageManager:
                 if not conflicts:
                     dirs = data.get("dirs", [])
                     for d_info in reversed(dirs):
-                        d_path = app_root / d_info.get("dest")
+                        dest_rel = d_info.get("dest")
+                        if not dest_rel:
+                            continue
+
+                        if dest_rel in other_referenced:
+                            print(f"[DEBUG] 目录被其他包引用，跳过删除: {dest_rel}")
+                            continue
+
+                        d_path = app_root / dest_rel
                         if d_path.exists() and d_path.is_dir():
                             # 只有目录为空时才删除，避免误删其他资源包的文件
                             try:
