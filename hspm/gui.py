@@ -10,6 +10,7 @@ from tkinter import filedialog, messagebox, ttk
 from .manager import PackageManager
 from .models import PackageStatus, PackageType, GUIConfigKey
 
+
 class AddPackageGUI:
     def __init__(self, root):
         self.root = root
@@ -347,7 +348,12 @@ class AddPackageGUI:
         frame_filter.pack(fill="x", **padding)
         ttk.Label(frame_filter, text="筛选类型:").pack(side="left", padx=5)
 
-        for t in [PackageType.ALL, PackageType.CHARACTER, PackageType.OTHER]:
+        for t in [
+            PackageType.ALL,
+            PackageType.CHARACTER,
+            PackageType.DHH,
+            PackageType.OTHER,
+        ]:
             ttk.Radiobutton(
                 frame_filter,
                 text=t.value,
@@ -544,6 +550,13 @@ class AddPackageGUI:
         ).pack(side="left", padx=10)
         ttk.Radiobutton(
             frame_type,
+            text=PackageType.DHH.value,
+            variable=self.pkg_type,
+            value=PackageType.DHH.value,
+            command=self.on_type_change,
+        ).pack(side="left", padx=10)
+        ttk.Radiobutton(
+            frame_type,
             text=PackageType.OTHER.value,
             variable=self.pkg_type,
             value=PackageType.OTHER.value,
@@ -552,27 +565,23 @@ class AddPackageGUI:
 
         # 第三行：识别信息 (动态显示)
         self.frame_info = ttk.Frame(self.frame_import_left)
-        # 初始状态由 on_type_change 决定
-
+        self.frame_info.pack(fill="x", padx=5, pady=2)
         self.frame_info.columnconfigure(1, weight=1)
 
-        ttk.Label(self.frame_info, text="角色名称:").grid(
-            row=0, column=0, sticky="w", padx=5, pady=2
-        )
+        self.lbl_name = ttk.Label(self.frame_info, text="角色名称:")
+        self.lbl_name.grid(row=0, column=0, sticky="w", padx=5, pady=2)
         self.name_entry = ttk.Entry(self.frame_info, textvariable=self.name)
         self.name_entry.grid(row=0, column=1, sticky="ew", padx=5, pady=2)
-        ttk.Label(self.frame_info, text="例如: 霜雪", style="Hint.TLabel").grid(
-            row=1, column=1, sticky="w", padx=10, pady=(0, 2)
+        self.lbl_name_hint = ttk.Label(
+            self.frame_info, text="例如: 霜雪", style="Hint.TLabel"
         )
+        self.lbl_name_hint.grid(row=1, column=1, sticky="w", padx=10, pady=(0, 2))
 
-        ttk.Label(self.frame_info, text="角色 SID:").grid(
-            row=2, column=0, sticky="w", padx=5, pady=2
-        )
+        self.lbl_sid = ttk.Label(self.frame_info, text="角色 SID:")
         self.sid_entry = ttk.Entry(self.frame_info, textvariable=self.sid)
-        self.sid_entry.grid(row=2, column=1, sticky="ew", padx=5, pady=2)
-        ttk.Label(
+        self.lbl_sid_hint = ttk.Label(
             self.frame_info, text="例如: HS2ChaF_20251105165109590", style="Hint.TLabel"
-        ).grid(row=3, column=1, sticky="w", padx=10, pady=(0, 2))
+        )
 
         self.cb_import_preview = ttk.Checkbutton(
             self.frame_info,
@@ -580,12 +589,11 @@ class AddPackageGUI:
             variable=self.show_import_preview,
             command=self.on_import_preview_toggle,
         )
-        self.cb_import_preview.grid(row=4, column=1, sticky="w", padx=5, pady=2)
 
         # 右侧预览栏
         self.frame_import_right = ttk.Frame(self.frame_import_main)
         self.frame_import_right.pack(side="right", padx=10, pady=0)
-        
+
         self.import_preview_label = ttk.Label(self.frame_import_right, text="无预览图")
         self.import_preview_label.pack()
 
@@ -615,7 +623,7 @@ class AddPackageGUI:
         # 操作按钮
         frame_actions = ttk.Frame(self.tab_import)
         frame_actions.pack(pady=10)
-        
+
         ttk.Button(frame_actions, text="开始安装", command=self.start_process).pack(
             side="left", padx=10
         )
@@ -631,10 +639,21 @@ class AddPackageGUI:
 
     def on_type_change(self, event=None):
         if self.pkg_type.get() == PackageType.CHARACTER.value:
-            self.frame_info.pack(fill="x", padx=5, pady=2)
+            self.lbl_name.config(text="角色名称:")
+            self.lbl_name_hint.config(text="例如: 霜雪")
+            self.lbl_sid.grid(row=2, column=0, sticky="w", padx=5, pady=2)
+            self.sid_entry.grid(row=2, column=1, sticky="ew", padx=5, pady=2)
+            self.lbl_sid_hint.grid(row=3, column=1, sticky="w", padx=10, pady=(0, 2))
+            self.cb_import_preview.grid(row=4, column=1, sticky="w", padx=5, pady=2)
             self.on_import_preview_toggle(save=False)
         else:
-            self.frame_info.pack_forget()
+            self.lbl_name.config(text="资源包名称:")
+            self.lbl_name_hint.config(text="例如: 我的光影包")
+            self.lbl_sid.grid_forget()
+            self.sid_entry.grid_forget()
+            self.lbl_sid_hint.grid_forget()
+            self.cb_import_preview.grid_forget()
+            self.on_import_preview_toggle(save=False)
 
     def on_list_filter_change(self):
         """列表筛选类型改变时触发"""
@@ -652,7 +671,10 @@ class AddPackageGUI:
         if save:
             self.save_settings()
         # 只有在筛选类型为“人物”且勾选了显示时，才真正展示预览面板
-        if self.show_card_view.get() and self.list_filter_type.get() == PackageType.CHARACTER.value:
+        if (
+            self.show_card_view.get()
+            and self.list_filter_type.get() == PackageType.CHARACTER.value
+        ):
             # 确保预览面板在右侧，表格在左侧并填充剩余空间
             # 重新打包以保证顺序：先排预览面板（固定在右），再排表格（填充剩余）
             self.frame_tree.pack_forget()
@@ -664,7 +686,10 @@ class AddPackageGUI:
 
     def on_tree_select(self, event=None):
         """列表选中项改变时更新预览"""
-        if not self.show_card_view.get() or self.list_filter_type.get() != PackageType.CHARACTER.value:
+        if (
+            not self.show_card_view.get()
+            or self.list_filter_type.get() != PackageType.CHARACTER.value
+        ):
             return
 
         selected = self.tree.selection()
@@ -727,7 +752,9 @@ class AddPackageGUI:
 
             if png_path and os.path.exists(png_path):
                 # 列表页预览图高度可以稍微大一点，或者保持一致
-                self.load_image_to_label(png_path, self.list_preview_label, target_height=400)
+                self.load_image_to_label(
+                    png_path, self.list_preview_label, target_height=400
+                )
             else:
                 self.list_preview_label.config(image="", text="未找到人物卡预览图")
         except Exception as e:
@@ -737,7 +764,10 @@ class AddPackageGUI:
         """导入页预览开关切换时触发"""
         if save:
             self.save_settings()
-        if self.show_import_preview.get() and self.pkg_type.get() == PackageType.CHARACTER.value:
+        if (
+            self.show_import_preview.get()
+            and self.pkg_type.get() == PackageType.CHARACTER.value
+        ):
             self.frame_import_right.pack(side="right", padx=10, pady=0)
             self.update_import_preview()
         else:
@@ -745,7 +775,10 @@ class AddPackageGUI:
 
     def update_import_preview(self):
         """更新导入页的人物卡预览"""
-        if not self.show_import_preview.get() or self.pkg_type.get() != PackageType.CHARACTER.value:
+        if (
+            not self.show_import_preview.get()
+            or self.pkg_type.get() != PackageType.CHARACTER.value
+        ):
             return
 
         source = self.source_path.get()
@@ -762,7 +795,9 @@ class AddPackageGUI:
 
         if png_path and png_path.exists():
             # 导入页预览图高度略小于左侧表单的高度 (约 180 像素)
-            self.load_image_to_label(png_path, self.import_preview_label, target_height=180)
+            self.load_image_to_label(
+                png_path, self.import_preview_label, target_height=180
+            )
         else:
             self.import_preview_label.config(image="", text="未找到人物卡预览图")
 
@@ -772,15 +807,16 @@ class AddPackageGUI:
             # 使用 PIL 进行高质量缩放 (如果可用)
             try:
                 from PIL import Image, ImageTk
+
                 img = Image.open(str(path))
-                
+
                 if target_height:
                     # 按比例缩放
                     w, h = img.size
                     ratio = target_height / h
                     new_w = int(w * ratio)
                     img = img.resize((new_w, target_height), Image.Resampling.LANCZOS)
-                
+
                 photo = ImageTk.PhotoImage(img)
                 label.config(image=photo, text="")
                 label.image = photo
@@ -829,13 +865,17 @@ class AddPackageGUI:
             self.source_path.set(path)
             self.auto_detect(Path(path).name)
 
-    def auto_detect(self, folder_name):
+    def auto_detect(self, folder_name: str):
         # 尝试匹配女性或男性角色特征 (例如: 名称.HS2ChaF_数字)
         match = re.search(r"^(.*)\.(HS2Cha[FM]_\d+)$", folder_name)
         if match:
             self.name.set(match.group(1))
             self.sid.set(match.group(2))
             self.pkg_type.set(PackageType.CHARACTER.value)
+        elif "DHH" in folder_name.upper():
+            self.name.set(folder_name)
+            self.sid.set("")
+            self.pkg_type.set(PackageType.DHH.value)
         else:
             # 未检测到标准 SID 格式
             self.name.set(folder_name)
@@ -865,13 +905,14 @@ class AddPackageGUI:
                 ):
                     return
         else:
-            # 其他类型：使用文件夹名作为名称，生成一个简单的 SID
+            # 其他类型：使用输入的名称（若为空则使用文件夹名），生成一个简单的 SID
             if not source:
                 messagebox.showerror("错误", "请先选择资源包目录")
                 return
             folder_path = Path(source)
-            name = folder_path.name
-            sid = f"Other_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            name = self.name.get() or folder_path.name
+            prefix = "DHH" if pkg_type == PackageType.DHH.value else "Other"
+            sid = f"{prefix}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
         # 校验配置路径
         if not app_root_val or not Path(app_root_val).is_dir():
@@ -889,10 +930,14 @@ class AddPackageGUI:
         existing_packages = self.manager.get_package_list(meta_dir_val)
         for pkg in existing_packages:
             if pkg["name"] == name:
-                messagebox.showerror("导入失败", f"已存在名称为 '{name}' 的资源包，请先卸载或更改名称。")
+                messagebox.showerror(
+                    "导入失败", f"已存在名称为 '{name}' 的资源包，请先卸载或更改名称。"
+                )
                 return
             if pkg["sid"] == sid:
-                messagebox.showerror("导入失败", f"已存在 SID 为 '{sid}' 的资源包，请先卸载。")
+                messagebox.showerror(
+                    "导入失败", f"已存在 SID 为 '{sid}' 的资源包，请先卸载。"
+                )
                 return
 
         # 元数据目录如果不存在可以尝试创建，或者也要求必须存在

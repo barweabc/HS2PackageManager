@@ -10,6 +10,7 @@ class PackageStatus(Enum):
 class PackageType(Enum):
     """资源包类型"""
     CHARACTER = "人物"
+    DHH = "DHH光影"
     OTHER = "其他"
     ALL = "全部"  # 仅用于筛选
 

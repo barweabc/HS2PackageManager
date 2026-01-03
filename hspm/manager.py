@@ -4,7 +4,7 @@ import sys
 import tomllib
 from datetime import datetime
 from pathlib import Path
-from .models import PackageStatus
+from .models import PackageStatus, PackageType
 
 
 class PackageManager:
@@ -102,8 +102,11 @@ class PackageManager:
                 print(f"读取元数据失败 {json_file}: {e}")
         return packages
 
-    def get_dest_path(self, relpath: Path, sid: str, name: str, app_root: Path):
+    def get_dest_path(self, relpath: Path, sid: str, name: str, app_root: Path, pkg_type: str = None):
         """计算目标安装路径"""
+        if pkg_type == PackageType.DHH.value:
+            return app_root / "DHH_Data" / name / relpath
+
         a = relpath.parts
         if not a:
             return None
@@ -156,7 +159,7 @@ class PackageManager:
                 continue
 
             relpath = path.relative_to(root)
-            dest = self.get_dest_path(relpath, sid, name, app_root)
+            dest = self.get_dest_path(relpath, sid, name, app_root, pkg_type)
             src_stat = path.stat()
             mtime_float = src_stat.st_mtime
             mtime_int = int(mtime_float * 1_000_000)
