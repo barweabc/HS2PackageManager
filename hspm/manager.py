@@ -10,8 +10,8 @@ class PackageManager:
     """处理资源包安装、元数据管理和配置的核心逻辑类"""
 
     def __init__(self):
-        # 配置文件路径: 用户目录/.config/HS2CharacterTool/config.json
-        self.config_dir = Path.home() / ".config" / "HS2CharacterTool"
+        # 配置文件路径: 用户目录/.config/HS2PackageManager/config.json
+        self.config_dir = Path.home() / ".config" / "HS2PackageManager"
         self.config_path = self.config_dir / "config.json"
         self.config = self.load_config()
         self.version = self._load_version()
