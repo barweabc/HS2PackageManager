@@ -25,7 +25,7 @@ for /f "usebackq tokens=*" %%a in (`%PYTHON_CMD% -c "import tomllib; print(tomll
 )
 
 echo 正在开始打包 [版本: !VERSION!] 请稍候...
-%PYTHON_CMD% -m PyInstaller --onefile --noconsole --name "HS2资源包管理工具_v!VERSION!" --add-data "pyproject.toml;." --clean --noconfirm "main.py"
+%PYTHON_CMD% -m PyInstaller --onefile --noconsole --name "HS2PackageManager_v!VERSION!" --add-data "pyproject.toml;." --clean --noconfirm "main.py"
 
 if %errorlevel% equ 0 (
     echo 正在清理临时文件...
