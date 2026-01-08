@@ -123,6 +123,9 @@ class PackageManager:
             if len(a) > 2 and a[1] == "chara" and a[2] == "thumb":
                 return None  # skip thumbnails
             return app_root / relpath
+        
+        if a[0] == "DHH_Data":
+            return app_root / "DHH_Data" /  name / Path(*a[1:])
 
         return None
 
